@@ -1,0 +1,643 @@
+openapi: 3.1.0
+info:
+  title: Online Judge API
+  version: 0.1.0
+  description: |
+    All responses use the envelope `{ ok: true, data }` or `{ ok: false, error: { code, message } }`.
+    Access tokens go in `Authorization: Bearer <token>`. The refresh token lives in the
+    httpOnly cookie `oj_rt` (path `/api/auth`). Milestones M1 through M7 cover health,
+    authentication, published problems, admin problem/testcase management, and submissions.
+servers:
+  - url: http://localhost:4000
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: oj_rt
+  schemas:
+    Error:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [user, admin] }
+        stats:
+          type: object
+          properties:
+            solved: { type: integer }
+            attempts: { type: integer }
+        createdAt: { type: string, format: date-time }
+    Session:
+      type: object
+      properties:
+        ok: { const: true }
+        data:
+          type: object
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+            accessToken: { type: string }
+            expiresIn: { type: integer, description: Access token lifetime in seconds }
+    Submission:
+      type: object
+      properties:
+        _id: { type: string }
+        problemId:
+          oneOf:
+            - { type: string }
+            - type: object
+              properties:
+                slug: { type: string }
+                title: { type: string }
+        language: { type: string, enum: [cpp, python, java] }
+        mode: { type: string, enum: [run, submit] }
+        status: { type: string, enum: [QUEUED, COMPILING, RUNNING, DONE, ERROR] }
+        verdict: { type: string, enum: [AC, WA, TLE, MLE, RE, CE, OLE, ERROR] }
+        runtimeMs: { type: number }
+        memoryKb: { type: number }
+        failedTestIndex: { type: integer }
+        failedCategory: { type: string }
+        compileLog: { type: string, maxLength: 4096 }
+        sampleResults:
+          type: array
+          description: Actual output for sample tests only; present for Run mode.
+          items:
+            type: object
+            properties:
+              testIndex: { type: integer }
+              verdict: { type: string, enum: [AC, WA, TLE, MLE, RE, CE, OLE, ERROR] }
+              runtimeMs: { type: number }
+              output: { type: string }
+        perTest:
+          type: array
+          description: Safe verdict metadata only; never includes test input or expected output.
+          items:
+            type: object
+            properties:
+              testIndex: { type: integer }
+              verdict: { type: string, enum: [AC, WA, TLE, MLE, RE, CE, OLE, ERROR] }
+              category: { type: string }
+              runtimeMs: { type: number }
+              memoryKb: { type: number }
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness and database connectivity
+      responses:
+        '200': { description: Healthy }
+        '503': { description: Database not connected }
+
+  /api/auth/signup:
+    post:
+      summary: Create an account and start a session
+      description: Rate limited per IP. Unknown fields are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, email, password]
+              properties:
+                username: { type: string, pattern: '^[A-Za-z0-9_]{3,30}$' }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '201':
+          description: Created; sets the refresh cookie
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/auth/login:
+    post:
+      summary: Log in
+      description: Rate limited per IP and per email. Generic error on bad credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Logged in; sets the refresh cookie
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/problems:
+    get:
+      summary: List published problems
+      parameters:
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: difficulty
+          schema: { type: string, enum: [Easy, Medium, Hard] }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: Published problem summaries and pagination metadata }
+        '400': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Create a problem (admin only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                [
+                  slug,
+                  title,
+                  difficulty,
+                  tags,
+                  statementMd,
+                  inputFormat,
+                  outputFormat,
+                  constraints,
+                  timeLimitMs,
+                  memoryLimitMb,
+                  checker,
+                  aiContext,
+                  source,
+                  isPublished,
+                ]
+              properties:
+                slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' }
+                title: { type: string }
+                difficulty: { type: string, enum: [Easy, Medium, Hard] }
+                tags: { type: array, items: { type: string } }
+                statementMd: { type: string }
+                inputFormat: { type: string }
+                outputFormat: { type: string }
+                constraints: { type: array, items: { type: string } }
+                timeLimitMs: { type: integer, minimum: 1 }
+                memoryLimitMb: { type: integer, minimum: 1 }
+                checker:
+                  type: object
+                  additionalProperties: false
+                  required: [type]
+                  properties:
+                    type: { type: string, enum: [exact, token, float, custom] }
+                    epsilon: { type: number, minimum: 0 }
+                aiContext:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    [
+                      edgeCases,
+                      commonMistakes,
+                      directionHint,
+                      keyInsight,
+                      outline,
+                      canaries,
+                      reviewed,
+                      lintWarnings,
+                    ]
+                  properties:
+                    edgeCases: { type: array, items: { type: string } }
+                    commonMistakes: { type: array, items: { type: string } }
+                    directionHint: { type: string }
+                    keyInsight: { type: string }
+                    outline: { type: string }
+                    canaries:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [phrase, level]
+                        properties:
+                          phrase: { type: string }
+                          level: { type: integer, minimum: 3, maximum: 4 }
+                    reviewed: { type: boolean }
+                    lintWarnings: { type: array, items: { type: string } }
+                source:
+                  type: object
+                  additionalProperties: false
+                  required: [type, url]
+                  properties:
+                    type: { type: string, enum: [original, scraped] }
+                    url: { type: string, maxLength: 2048 }
+                isPublished: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/problems/admin/list:
+    get:
+      summary: List all problems including unpublished drafts (admin only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Admin problem list }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /api/problems/{problemId}:
+    get:
+      summary: Get a published problem and sample tests only
+      parameters:
+        - in: path
+          name: problemId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Problem detail with sample test cases only }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Update a problem (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: problemId
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, minProperties: 1 }
+      responses:
+        '200': { description: Updated }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Unpublish a problem (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: problemId
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200': { description: Unpublished; the record is retained }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /api/problems/{id}/ai-context/review:
+    post:
+      summary: Mark tutor notes reviewed (admin only)
+      description: Notes with lint warnings are rejected unless overrideWarnings is explicitly true.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                overrideWarnings: { type: boolean, default: false }
+      responses:
+        '200': { description: Reviewed tutor notes }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/problems/{id}/testcases:
+    get:
+      summary: List all test cases including hidden tests (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200': { description: Admin test-case list }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Add a test case (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order, isSample, category]
+              properties:
+                order: { type: integer, minimum: 1 }
+                input: { type: string }
+                expectedOutput: { type: string }
+                fileRef: { type: string }
+                sha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+                isSample: { type: boolean }
+                category: { type: string }
+                weight: { type: number, minimum: 0, default: 1 }
+              oneOf:
+                - required: [input, expectedOutput]
+                  not: { anyOf: [{ required: [fileRef] }, { required: [sha256] }] }
+                - required: [fileRef, sha256, expectedOutput]
+                  not: { anyOf: [{ required: [input] }, { required: [expectedOutput] }] }
+      responses:
+        '201': { description: Created }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /api/problems/{id}/testcases/{testCaseId}:
+    put:
+      summary: Replace a test case (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+        - in: path
+          name: testCaseId
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete a test case (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+        - in: path
+          name: testCaseId
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200': { description: Deleted }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/submissions:
+    post:
+      summary: Queue a Run or Submit job
+      description: |
+        User code is only executed by the separate sandbox worker. Run checks samples only;
+        Submit checks all test cases. The response never includes source code or hidden test data.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [problemId, language, code]
+              properties:
+                problemId: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+                language: { type: string, enum: [cpp, python, java] }
+                code: { type: string, minLength: 1, maxLength: 65536 }
+                mode: { type: string, enum: [run, submit], default: submit }
+      responses:
+        '202':
+          description: Accepted and added to the judge queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      submission: { $ref: '#/components/schemas/Submission' }
+                      statusUrl: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/submissions/{id}:
+    get:
+      summary: Poll one of your submissions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200':
+          description: Owner-scoped status and safe result metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  data: { $ref: '#/components/schemas/Submission' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/submissions/mine:
+    get:
+      summary: List your submissions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: problemId
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: Owner-scoped submission history and pagination }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/ai/conversation:
+    get:
+      summary: Get your tutor conversation and backend-computed hint level
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: problemId
+          required: true
+          schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200': { description: Owner-scoped messages, visible hint level, and cooldown }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/ai/unlock:
+    post:
+      summary: Explicitly unlock the next eligible hint
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [problemId]
+              properties:
+                problemId: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+      responses:
+        '200': { description: New hint level and cooldown }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/ai/chat:
+    post:
+      summary: Ask the tutor and receive a guarded SSE reply
+      description: |
+        User messages and editor code are sanitized, level-filtered context is assembled on the
+        server, and output is guarded before any reply is sent. The model never receives reference
+        solutions or hidden test data. Daily limits apply per user and problem.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [problemId, message]
+              properties:
+                problemId: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+                message: { type: string, maxLength: 2000 }
+                editorCode: { type: string, maxLength: 100000 }
+      responses:
+        '200':
+          description: Server-sent events (replaced, delta, done, or error)
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/ai/feedback:
+    post:
+      summary: Rate one of your tutor replies
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [problemId, messageIndex, rating]
+              properties:
+                problemId: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+                messageIndex: { type: integer, minimum: 0 }
+                rating: { type: string, enum: [up, down] }
+      responses:
+        '200': { description: Feedback saved }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /api/auth/refresh:
+    post:
+      summary: Rotate the refresh token and issue a new access token
+      description: |
+        Reusing an already-rotated token revokes every token in that session family.
+      security: [{ refreshCookie: [] }]
+      responses:
+        '200':
+          description: New session; sets a new refresh cookie
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/auth/logout:
+    post:
+      summary: Revoke the current session and clear the cookie (idempotent)
+      security: [{ refreshCookie: [] }]
+      responses:
+        '200': { description: Logged out }
+
+  /api/auth/me:
+    get:
+      summary: Current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { const: true }
+                  data:
+                    type: object
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Error' }

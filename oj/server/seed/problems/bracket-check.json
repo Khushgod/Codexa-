@@ -1,0 +1,86 @@
+{
+  "problem": {
+    "slug": "bracket-check",
+    "title": "Bracket Check",
+    "difficulty": "Easy",
+    "tags": ["strings", "stack"],
+    "statementMd": "A string contains only the bracket characters `()`, `[]`, and `{}`. Determine whether every opening bracket is closed by the same type in the correct order. Print `YES` if the complete string is balanced and `NO` otherwise. The empty string is balanced.\n\n### Sample 1\n\nInput:\n```text\n{[()]}\n```\nOutput:\n```text\nYES\n```\n\n### Sample 2\n\nInput:\n```text\n([)]\n```\nOutput:\n```text\nNO\n```",
+    "inputFormat": "One line containing a string of bracket characters. The line may be empty.",
+    "outputFormat": "Print `YES` for a balanced string; otherwise print `NO`.",
+    "constraints": ["0 <= string length <= 200000", "The input contains only `()[]{}`."],
+    "timeLimitMs": 1000,
+    "memoryLimitMb": 256,
+    "checker": { "type": "token" },
+    "aiContext": {
+      "edgeCases": [
+        "An empty string.",
+        "A closing bracket appears before any opener.",
+        "The counts match but the nesting order is invalid."
+      ],
+      "commonMistakes": [
+        "Checking only that opening and closing counts match.",
+        "Accepting a closing bracket that does not match the most recent opener.",
+        "Forgetting to reject leftover openers."
+      ],
+      "directionHint": "When a closing bracket arrives, which earlier opening bracket must it match?",
+      "keyInsight": "The amber-nest invariant remembers unmatched openers in the order they must be closed.",
+      "outline": "The velvet-bracket trail is a last-opened, first-closed record; the coined phrase velvet-bracket trail describes this nesting discipline.",
+      "canaries": [
+        { "phrase": "amber-nest invariant", "level": 3 },
+        { "phrase": "velvet-bracket trail", "level": 4 }
+      ],
+      "reviewed": false,
+      "lintWarnings": []
+    },
+    "source": { "type": "original", "url": "" },
+    "isPublished": false
+  },
+  "testCases": [
+    { "input": "{[()]}\n", "expectedOutput": "YES\n", "isSample": true, "category": "sample" },
+    { "input": "([)]\n", "expectedOutput": "NO\n", "isSample": true, "category": "wrong-nesting" },
+    { "input": "\n", "expectedOutput": "YES\n", "isSample": false, "category": "empty-string" },
+    {
+      "input": "()[]{}\n",
+      "expectedOutput": "YES\n",
+      "isSample": false,
+      "category": "adjacent-pairs"
+    },
+    {
+      "input": "(((())))\n",
+      "expectedOutput": "YES\n",
+      "isSample": false,
+      "category": "deep-nesting"
+    },
+    {
+      "input": "((()\n",
+      "expectedOutput": "NO\n",
+      "isSample": false,
+      "category": "unclosed-opener"
+    },
+    { "input": "())\n", "expectedOutput": "NO\n", "isSample": false, "category": "extra-closer" },
+    {
+      "input": "{[}]\n",
+      "expectedOutput": "NO\n",
+      "isSample": false,
+      "category": "mismatched-types"
+    },
+    {
+      "generatedInput": {
+        "parts": [
+          { "repeat": { "text": "(", "count": 20000 } },
+          { "repeat": { "text": ")", "count": 20000 } },
+          { "text": "\n" }
+        ]
+      },
+      "expectedOutput": "YES\n",
+      "isSample": false,
+      "category": "large-nesting"
+    }
+  ],
+  "referenceSolutions": {
+    "cpp": "reference/bracket-check/reference.cpp",
+    "python": "reference/bracket-check/reference.py",
+    "wrong": "reference/bracket-check/wrong.py",
+    "slow": "reference/bracket-check/slow.py"
+  }
+}

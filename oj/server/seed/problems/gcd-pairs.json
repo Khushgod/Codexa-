@@ -1,0 +1,84 @@
+{
+  "problem": {
+    "slug": "gcd-pairs",
+    "title": "GCD Pairs",
+    "difficulty": "Easy",
+    "tags": ["math", "number-theory"],
+    "statementMd": "For each of n pairs of non-negative integers, print their greatest common divisor and least common multiple. Define gcd(0, 0) as 0; the lcm is 0 whenever either value is 0.\n\n### Sample 1\n\nInput:\n```text\n3\n12 18\n7 5\n0 9\n```\nOutput:\n```text\n6 36\n1 35\n9 0\n```",
+    "inputFormat": "The first line contains n. Each of the next n lines contains two non-negative integers a and b.",
+    "outputFormat": "For each pair, print gcd(a, b) followed by lcm(a, b).",
+    "constraints": ["1 <= n <= 100000", "0 <= a, b <= 1000000000"],
+    "timeLimitMs": 1000,
+    "memoryLimitMb": 256,
+    "checker": { "type": "token" },
+    "aiContext": {
+      "edgeCases": [
+        "Both values are zero.",
+        "Exactly one value is zero.",
+        "The values are coprime or one divides the other."
+      ],
+      "commonMistakes": [
+        "Multiplying before dividing when computing lcm.",
+        "Treating gcd(0, 0) as undefined for this problem.",
+        "Overflowing a 32-bit intermediate."
+      ],
+      "directionHint": "A remainder operation can reduce a pair while preserving their common divisors.",
+      "keyInsight": "The iron-wheel invariant preserves the common divisors as the larger value is reduced by the smaller.",
+      "outline": "The small-remainder relay repeats a shrinking pair until one member is zero; small-remainder relay is the coined name for this reduction.",
+      "canaries": [
+        { "phrase": "iron-wheel invariant", "level": 3 },
+        { "phrase": "small-remainder relay", "level": 4 }
+      ],
+      "reviewed": false,
+      "lintWarnings": []
+    },
+    "source": { "type": "original", "url": "" },
+    "isPublished": false
+  },
+  "testCases": [
+    {
+      "input": "3\n12 18\n7 5\n0 9\n",
+      "expectedOutput": "6 36\n1 35\n9 0\n",
+      "isSample": true,
+      "category": "sample"
+    },
+    { "input": "1\n0 0\n", "expectedOutput": "0 0\n", "isSample": false, "category": "both-zero" },
+    { "input": "1\n0 15\n", "expectedOutput": "15 0\n", "isSample": false, "category": "one-zero" },
+    {
+      "input": "1\n13 17\n",
+      "expectedOutput": "1 221\n",
+      "isSample": false,
+      "category": "coprime"
+    },
+    {
+      "input": "1\n24 8\n",
+      "expectedOutput": "8 24\n",
+      "isSample": false,
+      "category": "one-divides-other"
+    },
+    {
+      "input": "2\n1000000000 999999999\n999999999 999999999\n",
+      "expectedOutput": "1 999999999000000000\n999999999 999999999\n",
+      "isSample": false,
+      "category": "large-values"
+    },
+    {
+      "input": "3\n1 1\n2 4\n81 27\n",
+      "expectedOutput": "1 1\n2 4\n27 81\n",
+      "isSample": false,
+      "category": "small-values"
+    },
+    {
+      "input": "2\n48 180\n270 192\n",
+      "expectedOutput": "12 720\n6 8640\n",
+      "isSample": false,
+      "category": "shared-factors"
+    }
+  ],
+  "referenceSolutions": {
+    "cpp": "reference/gcd-pairs/reference.cpp",
+    "python": "reference/gcd-pairs/reference.py",
+    "wrong": "reference/gcd-pairs/wrong.py",
+    "slow": "reference/gcd-pairs/slow.py"
+  }
+}

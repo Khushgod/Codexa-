@@ -1,0 +1,107 @@
+[
+  {
+    "slug": "pair-signal",
+    "category": "no-solution",
+    "level": 1,
+    "note": "No two values sum to the target."
+  },
+  {
+    "slug": "pair-signal",
+    "category": "tie-pairs",
+    "level": 1,
+    "note": "Several valid pairs have different first indices."
+  },
+  {
+    "slug": "pair-signal",
+    "category": "duplicate-values",
+    "level": 1,
+    "note": "The matching values are equal and need distinct indices."
+  },
+  {
+    "slug": "pair-signal",
+    "category": "earliest-index",
+    "level": 2,
+    "note": "Returning the first pair discovered by the second index rather than the lexicographically smallest index pair."
+  },
+  { "slug": "bracket-check", "category": "empty-input", "level": 1, "note": "An empty string." },
+  {
+    "slug": "bracket-check",
+    "category": "early-close",
+    "level": 1,
+    "note": "A closing bracket appears before any opener."
+  },
+  {
+    "slug": "bracket-check",
+    "category": "invalid-nesting",
+    "level": 1,
+    "note": "The counts match but the nesting order is invalid."
+  },
+  {
+    "slug": "bracket-check",
+    "category": "matching-counts",
+    "level": 2,
+    "note": "Checking only that opening and closing counts match."
+  },
+  {
+    "slug": "first-marker",
+    "category": "target-too-small",
+    "level": 1,
+    "note": "The target is smaller than every value."
+  },
+  {
+    "slug": "first-marker",
+    "category": "target-too-large",
+    "level": 1,
+    "note": "The target is larger than every value."
+  },
+  {
+    "slug": "first-marker",
+    "category": "repeated-target",
+    "level": 1,
+    "note": "The target appears more than once."
+  },
+  {
+    "slug": "first-marker",
+    "category": "empty-array",
+    "level": 2,
+    "note": "Forgetting the empty array case."
+  },
+  {
+    "slug": "best-harvest",
+    "category": "all-negative",
+    "level": 1,
+    "note": "All values are negative."
+  },
+  {
+    "slug": "best-harvest",
+    "category": "one-element-range",
+    "level": 1,
+    "note": "The best range has one element."
+  },
+  {
+    "slug": "best-harvest",
+    "category": "crossing-range",
+    "level": 1,
+    "note": "The best range crosses negative values."
+  },
+  {
+    "slug": "best-harvest",
+    "category": "empty-range",
+    "level": 2,
+    "note": "Allowing the empty range and returning zero for all-negative input."
+  },
+  { "slug": "gcd-pairs", "category": "both-zero", "level": 1, "note": "Both values are zero." },
+  { "slug": "gcd-pairs", "category": "one-zero", "level": 1, "note": "Exactly one value is zero." },
+  {
+    "slug": "gcd-pairs",
+    "category": "coprime",
+    "level": 1,
+    "note": "The values are coprime or one divides the other."
+  },
+  {
+    "slug": "gcd-pairs",
+    "category": "overflow",
+    "level": 2,
+    "note": "Overflowing a 32-bit intermediate."
+  }
+]

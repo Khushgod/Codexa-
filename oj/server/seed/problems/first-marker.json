@@ -1,0 +1,100 @@
+{
+  "problem": {
+    "slug": "first-marker",
+    "title": "First Marker",
+    "difficulty": "Easy",
+    "tags": ["arrays", "binary-search"],
+    "statementMd": "Given a sorted integer array and a target value, find the index where the target first appears. If it does not appear, return the index where it could be inserted while keeping the array sorted. Indices are zero-based.\n\n### Sample 1\n\nInput:\n```text\n6 4\n1 2 4 4 7 9\n```\nOutput:\n```text\n2\n```\n\n### Sample 2\n\nInput:\n```text\n4 5\n1 2 6 8\n```\nOutput:\n```text\n2\n```",
+    "inputFormat": "The first line contains n and target. The second line contains n sorted integers; n may be zero.",
+    "outputFormat": "Print the first index containing target, or its sorted insertion index.",
+    "constraints": [
+      "0 <= n <= 200000",
+      "-1000000000 <= values[i], target <= 1000000000",
+      "values are sorted in non-decreasing order."
+    ],
+    "timeLimitMs": 1000,
+    "memoryLimitMb": 256,
+    "checker": { "type": "token" },
+    "aiContext": {
+      "edgeCases": [
+        "The target is smaller than every value.",
+        "The target is larger than every value.",
+        "The target appears more than once."
+      ],
+      "commonMistakes": [
+        "Returning an arbitrary matching index instead of the first one.",
+        "Using a closed interval and an update rule that can stall.",
+        "Forgetting the empty array case."
+      ],
+      "directionHint": "When you find a match, can there still be an earlier valid index?",
+      "keyInsight": "The blue-door invariant keeps the answer boundary inside a shrinking half-open interval.",
+      "outline": "The pale-compass boundary narrows to the first position not less than the target; pale-compass boundary is the coined name for the insertion point.",
+      "canaries": [
+        { "phrase": "blue-door invariant", "level": 3 },
+        { "phrase": "pale-compass boundary", "level": 4 }
+      ],
+      "reviewed": false,
+      "lintWarnings": []
+    },
+    "source": { "type": "original", "url": "" },
+    "isPublished": false
+  },
+  "testCases": [
+    {
+      "input": "6 4\n1 2 4 4 7 9\n",
+      "expectedOutput": "2\n",
+      "isSample": true,
+      "category": "sample"
+    },
+    {
+      "input": "4 5\n1 2 6 8\n",
+      "expectedOutput": "2\n",
+      "isSample": true,
+      "category": "missing-target"
+    },
+    { "input": "0 3\n\n", "expectedOutput": "0\n", "isSample": false, "category": "empty-array" },
+    {
+      "input": "4 0\n1 2 3 4\n",
+      "expectedOutput": "0\n",
+      "isSample": false,
+      "category": "before-first"
+    },
+    {
+      "input": "4 9\n1 2 3 4\n",
+      "expectedOutput": "4\n",
+      "isSample": false,
+      "category": "after-last"
+    },
+    {
+      "input": "5 2\n1 2 2 2 5\n",
+      "expectedOutput": "1\n",
+      "isSample": false,
+      "category": "duplicate-target"
+    },
+    { "input": "1 8\n8\n", "expectedOutput": "0\n", "isSample": false, "category": "single-match" },
+    {
+      "input": "1 7\n8\n",
+      "expectedOutput": "0\n",
+      "isSample": false,
+      "category": "single-insertion"
+    },
+    {
+      "generatedInput": {
+        "parts": [
+          { "text": "100000 1\n" },
+          { "repeat": { "text": "0 ", "count": 100000 } },
+          { "text": "\n" }
+        ]
+      },
+      "expectedOutput": "100000\n",
+      "isSample": false,
+      "category": "large-n"
+    }
+  ],
+  "referenceSolutions": {
+    "cpp": "reference/first-marker/reference.cpp",
+    "python": "reference/first-marker/reference.py",
+    "wrong": "reference/first-marker/wrong.py",
+    "slow": "reference/first-marker/slow.py"
+  }
+}

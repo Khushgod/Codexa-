@@ -1,0 +1,42 @@
+{
+  "name": "oj",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LeetCode-style online judge (MERN modular monolith)",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "overrides": {
+    "dompurify": "3.4.17"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:client": "npm run dev -w client",
+    "dev:worker": "npm run dev:worker -w server",
+    "start": "npm run start -w server",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build -w client",
+    "user:promote": "npm run user:promote -w server --",
+    "seed": "npm run seed -w server",
+    "import-problem": "npm run import-problem -w server --",
+    "verify-seed": "npm run verify-seed -w server",
+    "build:judge-image": "docker build --file judge-runtime/Dockerfile --tag oj-judge-runtime:dev judge-runtime",
+    "judge:calibrate": "npm run judge:calibrate -w server",
+    "generate-ai-notes": "npm run generate-ai-notes -w server --",
+    "ai:redteam": "npm run ai:redteam -w server",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.13.0",
+    "prettier": "3.9.10"
+  }
+}

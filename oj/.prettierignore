@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+package-lock.json
+# Owner-maintained design docs: never reformat.
+CLAUDE.md
+docs/HLD.md

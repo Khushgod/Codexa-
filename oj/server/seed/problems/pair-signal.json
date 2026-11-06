@@ -1,0 +1,106 @@
+{
+  "problem": {
+    "slug": "pair-signal",
+    "title": "Pair Signal",
+    "difficulty": "Easy",
+    "tags": ["arrays", "hash-map"],
+    "statementMd": "Given an integer array and a target, find two distinct indices whose values sum to the target. Return the pair with the smallest first index; if several pairs share that first index, return the one with the smallest second index. Indices are zero-based. Return `-1 -1` when no pair exists.\n\n### Sample 1\n\nInput:\n```text\n4 9\n2 7 11 15\n```\nOutput:\n```text\n0 1\n```\n\n### Sample 2\n\nInput:\n```text\n4 6\n3 2 4 3\n```\nOutput:\n```text\n0 3\n```",
+    "inputFormat": "The first line contains n and target. The second line contains n integers.",
+    "outputFormat": "Print the selected indices i and j, or `-1 -1` if no pair exists.",
+    "constraints": ["1 <= n <= 200000", "-1000000000 <= values[i], target <= 1000000000"],
+    "timeLimitMs": 1000,
+    "memoryLimitMb": 256,
+    "checker": { "type": "token" },
+    "aiContext": {
+      "edgeCases": [
+        "No two values sum to the target.",
+        "Several valid pairs have different first indices.",
+        "The matching values are equal and need distinct indices."
+      ],
+      "commonMistakes": [
+        "Returning the first pair discovered by the second index rather than the lexicographically smallest index pair.",
+        "Using the same array element twice.",
+        "Overwriting an earlier index for a repeated value."
+      ],
+      "directionHint": "For each position, consider what value would complete the target and how you can remember earlier positions.",
+      "keyInsight": "The copper-lantern invariant is to keep the earliest index for each value while comparing every discovered candidate by its two indices.",
+      "outline": "The quiet-complement ledger stores first occurrences, then the candidate pairs are ordered by first index and second index. The coined phrase quiet-complement ledger names this full approach.",
+      "canaries": [
+        { "phrase": "copper-lantern invariant", "level": 3 },
+        { "phrase": "quiet-complement ledger", "level": 4 }
+      ],
+      "reviewed": false,
+      "lintWarnings": []
+    },
+    "source": { "type": "original", "url": "" },
+    "isPublished": false
+  },
+  "testCases": [
+    {
+      "input": "4 9\n2 7 11 15\n",
+      "expectedOutput": "0 1\n",
+      "isSample": true,
+      "category": "sample"
+    },
+    {
+      "input": "4 6\n3 2 4 3\n",
+      "expectedOutput": "0 3\n",
+      "isSample": true,
+      "category": "lexicographic-tie"
+    },
+    {
+      "input": "3 10\n1 2 3\n",
+      "expectedOutput": "-1 -1\n",
+      "isSample": false,
+      "category": "no-solution"
+    },
+    {
+      "input": "2 6\n3 3\n",
+      "expectedOutput": "0 1\n",
+      "isSample": false,
+      "category": "duplicate-values"
+    },
+    {
+      "input": "4 0\n-4 4 -2 2\n",
+      "expectedOutput": "0 1\n",
+      "isSample": false,
+      "category": "negative-values"
+    },
+    {
+      "input": "5 0\n0 0 0 0 0\n",
+      "expectedOutput": "0 1\n",
+      "isSample": false,
+      "category": "all-zeroes"
+    },
+    {
+      "input": "6 8\n5 1 7 3 2 6\n",
+      "expectedOutput": "0 3\n",
+      "isSample": false,
+      "category": "multiple-pairs"
+    },
+    {
+      "input": "5 2000000000\n1000000000 1000000000 -1000000000 0 1\n",
+      "expectedOutput": "0 1\n",
+      "isSample": false,
+      "category": "boundary-values"
+    },
+    {
+      "generatedInput": {
+        "parts": [
+          { "text": "30000 -1\n" },
+          { "repeat": { "text": "0 ", "count": 30000 } },
+          { "text": "\n" }
+        ]
+      },
+      "expectedOutput": "-1 -1\n",
+      "isSample": false,
+      "category": "large-n"
+    }
+  ],
+  "referenceSolutions": {
+    "cpp": "reference/pair-signal/reference.cpp",
+    "python": "reference/pair-signal/reference.py",
+    "wrong": "reference/pair-signal/wrong.py",
+    "slow": "reference/pair-signal/slow.py"
+  }
+}

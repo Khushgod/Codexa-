@@ -1,0 +1,38 @@
+{
+  "name": "@oj/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../.env src/server.js",
+    "dev:worker": "node --watch --env-file-if-exists=../.env src/worker.js",
+    "start": "node --env-file-if-exists=../.env src/server.js",
+    "test": "vitest --run",
+    "user:promote": "node --env-file-if-exists=../.env scripts/promote-admin.js",
+    "seed": "node --env-file-if-exists=../.env scripts/seed.js",
+    "import-problem": "node --env-file-if-exists=../.env scripts/import-problem.js",
+    "verify-seed": "node --env-file-if-exists=../.env scripts/verify-seed.js",
+    "judge:calibrate": "node --env-file-if-exists=../.env scripts/judge-calibrate.js",
+    "generate-ai-notes": "node --env-file-if-exists=../.env scripts/generate-ai-notes.js",
+    "ai:redteam": "node --env-file-if-exists=../.env scripts/ai-redteam.js"
+  },
+  "dependencies": {
+    "argon2": "0.45.1",
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.6",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.2",
+    "helmet": "8.3.0",
+    "jsonwebtoken": "9.0.3",
+    "mongoose": "9.11.4",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "11.3.0",
+    "supertest": "7.3.1",
+    "vitest": "5.0.5"
+  }
+}
