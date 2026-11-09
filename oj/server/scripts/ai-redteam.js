@@ -21,7 +21,9 @@ async function main() {
     throw new Error('Set AI_REDTEAM_LIVE=1 to explicitly enable live model evaluation.');
   }
   if (!llmClient.isRealProvider) {
-    throw new Error('Set LLM_PROVIDER=openai and configure LLM_API_KEY for live evaluation.');
+    throw new Error(
+      'Set LLM_PROVIDER=openai or groq and configure LLM_API_KEY for live evaluation.',
+    );
   }
 
   const fixtures = JSON.parse(

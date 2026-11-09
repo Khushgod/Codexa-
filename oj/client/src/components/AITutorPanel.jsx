@@ -23,6 +23,7 @@ export function AITutorPanel({ problemId, editorCode, hidden = false }) {
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [safetyNotice, setSafetyNotice] = useState(false);
+  const [providerNotice, setProviderNotice] = useState(false);
   const messagesEnd = useRef(null);
 
   const reload = useCallback(async () => {
@@ -57,6 +58,7 @@ export function AITutorPanel({ problemId, editorCode, hidden = false }) {
     setBusy(true);
     setError('');
     setSafetyNotice(false);
+    setProviderNotice(false);
     setInput('');
     setConversation((current) => ({
       ...current,
@@ -83,6 +85,9 @@ export function AITutorPanel({ problemId, editorCode, hidden = false }) {
         }
         if (event === 'replaced') {
           setSafetyNotice(true);
+        }
+        if (event === 'fallback') {
+          setProviderNotice(true);
         }
       });
       await reload();
@@ -178,6 +183,11 @@ export function AITutorPanel({ problemId, editorCode, hidden = false }) {
         ))}
         {safetyNotice && (
           <p className="ai-safety-note">A response was adjusted by safety checks.</p>
+        )}
+        {providerNotice && (
+          <p className="ai-safety-note" role="status">
+            The AI provider is currently unavailable; this is fallback guidance.
+          </p>
         )}
         <div ref={messagesEnd} />
       </div>

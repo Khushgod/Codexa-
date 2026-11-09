@@ -20,7 +20,9 @@ async function main() {
     throw new Error('Usage: npm run generate-ai-notes -- <problem-slug>');
   }
   if (!llmClient.isRealProvider) {
-    throw new Error('Set LLM_PROVIDER=openai and configure LLM_API_KEY before generating notes.');
+    throw new Error(
+      'Set LLM_PROVIDER=openai or groq and configure LLM_API_KEY before generating notes.',
+    );
   }
 
   await connectDb(env.MONGODB_URI);

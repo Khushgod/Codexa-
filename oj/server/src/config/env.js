@@ -9,11 +9,13 @@ import { z } from 'zod';
 
 const intFromEnv = (fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) =>
   z.coerce.number().int().min(min).max(max).default(fallback);
+const MAX_AI_COMPLETION_TOKENS = 8192;
 
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: intFromEnv(4000, { max: 65535 }),
+    HOST: z.string().min(1).default('0.0.0.0'),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -70,12 +72,13 @@ const envSchema = z
         'must be a CPU list such as 0 or 0-2',
       ),
 
-    LLM_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
-    LLM_MODEL: z.string().min(1).default('gpt-4o-mini'),
-    LLM_BASE_URL: z.string().url().default('https://api.openai.com/v1'),
+    LLM_PROVIDER: z.enum(['mock', 'openai', 'groq']).default('mock'),
+    LLM_MODEL: z.string().min(1).optional(),
+    LLM_BASE_URL: z.string().url().optional(),
     LLM_API_KEY: z.string().default(''),
     LLM_TIMEOUT_MS: intFromEnv(15_000, { min: 1000, max: 120_000 }),
-    AI_MAX_TOKENS: intFromEnv(400, { min: 32, max: 1000 }),
+    AI_MAX_TOKENS: z.coerce.number().int().min(32).max(MAX_AI_COMPLETION_TOKENS).optional(),
+    LLM_MAX_TOKENS: z.coerce.number().int().min(32).max(MAX_AI_COMPLETION_TOKENS).optional(),
     AI_DAILY_MESSAGE_LIMIT: intFromEnv(30, { max: 1000 }),
     AI_MIN_ATTEMPT_CHARS: intFromEnv(20, { max: 1000 }),
     AI_L2_UNLOCK_MINUTES: intFromEnv(15, { max: 1440 }),
@@ -87,14 +90,31 @@ const envSchema = z
       .transform((value) => value === '1'),
   })
   .superRefine((value, ctx) => {
-    if (value.LLM_PROVIDER === 'openai' && !value.LLM_API_KEY) {
+    if (value.LLM_PROVIDER !== 'mock' && !value.LLM_API_KEY) {
       ctx.addIssue({
         code: 'custom',
         path: ['LLM_API_KEY'],
-        message: 'is required when LLM_PROVIDER=openai',
+        message: `is required when LLM_PROVIDER=${value.LLM_PROVIDER}`,
       });
     }
-  });
+    if (value.LLM_PROVIDER === 'groq' && !value.LLM_MODEL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LLM_MODEL'],
+        message: 'is required when LLM_PROVIDER=groq',
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    LLM_MODEL: value.LLM_MODEL ?? 'gpt-4o-mini',
+    AI_MAX_TOKENS: value.AI_MAX_TOKENS ?? value.LLM_MAX_TOKENS ?? 400,
+    LLM_BASE_URL:
+      value.LLM_BASE_URL ??
+      (value.LLM_PROVIDER === 'groq'
+        ? 'https://api.groq.com/openai/v1'
+        : 'https://api.openai.com/v1'),
+  }));
 
 /**
  * @typedef {z.infer<typeof envSchema>} Env

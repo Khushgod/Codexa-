@@ -7,8 +7,11 @@ import { logger } from './utils/logger.js';
 async function main() {
   await connectDb(env.MONGODB_URI);
 
-  const server = createApp().listen(env.PORT, () => {
-    logger.info({ event: 'api.listening', port: env.PORT }, `API listening on :${env.PORT}`);
+  const server = createApp().listen(env.PORT, env.HOST, () => {
+    logger.info(
+      { event: 'api.listening', host: env.HOST, port: env.PORT },
+      `API listening on ${env.HOST}:${env.PORT}`,
+    );
   });
 
   const shutdown = (signal) => {

@@ -38,7 +38,10 @@ export async function chat(req, res, next) {
     });
     res.flushHeaders();
     const result = await aiService.chat(req.user.id, input);
-    if (result.replaced) sendEvent(res, 'replaced', { reason: 'safety_guard' });
+    if (result.replaced && !result.providerFailed) {
+      sendEvent(res, 'replaced', { reason: 'safety_guard' });
+    }
+    if (result.providerFailed) sendEvent(res, 'fallback', { reason: 'provider_unavailable' });
     sendEvent(res, 'delta', { content: result.reply });
     sendEvent(res, 'done', { level: result.level });
     res.end();

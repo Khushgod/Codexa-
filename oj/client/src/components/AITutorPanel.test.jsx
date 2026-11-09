@@ -86,6 +86,35 @@ describe('AI tutor panel', () => {
     });
   });
 
+  it('explains when the AI provider failed and fallback guidance was returned', async () => {
+    mocks.user = { id: 'user-1' };
+    let replied = false;
+    mocks.getTutorConversation.mockImplementation(async () => ({
+      hintLevelUnlocked: 1,
+      nextUnlock: null,
+      cooldownMs: 0,
+      messages: replied
+        ? [
+            { index: 0, role: 'user', content: 'Explain the problem', level: 1 },
+            { index: 1, role: 'assistant', content: 'Try the smallest input.', level: 1 },
+          ]
+        : [],
+    }));
+    mocks.streamTutorChat.mockImplementation(async (_input, onEvent) => {
+      replied = true;
+      onEvent('fallback', { reason: 'provider_unavailable' });
+      onEvent('delta', { content: 'Try the smallest input.' });
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Explain the problem' }));
+
+    expect(await screen.findByText('Try the smallest input.')).toBeInTheDocument();
+    expect(
+      screen.getByText('The AI provider is currently unavailable; this is fallback guidance.'),
+    ).toBeInTheDocument();
+  });
+
   it('shows a spoiler confirmation before an explicit hint unlock', async () => {
     mocks.user = { id: 'user-1' };
     mocks.getTutorConversation.mockResolvedValue({

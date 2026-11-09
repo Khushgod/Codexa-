@@ -50,6 +50,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"   # a g
 | ---------------------------- | ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
 | `NODE_ENV`                   | no          | `development`           | `development`, `test`, or `production`. Production sets the `Secure` cookie flag.            |
 | `PORT`                       | no          | `4000`                  | API port                                                                                     |
+| `HOST`                       | no          | `0.0.0.0`               | Address for the API listener; set `127.0.0.1` when Nginx runs on the same host               |
 | `LOG_LEVEL`                  | no          | `info`                  | pino level (`fatal` to `trace`, or `silent`)                                                 |
 | `MONGODB_URI`                | **yes**     | none                    | `mongodb://` or `mongodb+srv://` connection string                                           |
 | `DNS_SERVERS`                | no          | system DNS              | Optional comma-separated DNS resolver IPs; useful when Node cannot resolve Atlas SRV records |
@@ -67,12 +68,12 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"   # a g
 | `JUDGE_LEASE_SEC`            | no          | `60`                    | Job lease duration; workers heartbeat while judging                                          |
 | `JUDGE_JOB_RETENTION_DAYS`   | no          | `30`                    | TTL retention for completed judge jobs                                                       |
 | `JUDGE_CPUSET`               | no          | unset                   | Optional Docker CPU pinning list, such as `0` or `0-2`                                       |
-| `LLM_PROVIDER`               | no          | `mock`                  | `mock` for deterministic development replies or `openai` for a hosted OpenAI-compatible API  |
-| `LLM_MODEL`                  | no          | `gpt-4o-mini`           | Model name sent to the configured provider                                                   |
-| `LLM_BASE_URL`               | no          | OpenAI API URL          | OpenAI-compatible API base URL                                                               |
-| `LLM_API_KEY`                | conditional | empty                   | Required only when `LLM_PROVIDER=openai`                                                     |
+| `LLM_PROVIDER`               | no          | `mock`                  | `mock`, `openai`, or `groq`                                                                   |
+| `LLM_MODEL`                  | conditional | `gpt-4o-mini`           | Model ID sent to the provider; required for `groq`                                            |
+| `LLM_BASE_URL`               | no          | Provider-specific       | OpenAI-compatible API URL; defaults to Groq's API URL when `LLM_PROVIDER=groq`               |
+| `LLM_API_KEY`                | conditional | empty                   | Required for `openai` and `groq`; keep it in your deployment's secret store                  |
 | `LLM_TIMEOUT_MS`             | no          | `15000`                 | Provider and classifier request timeout in milliseconds                                      |
-| `AI_MAX_TOKENS`              | no          | `400`                   | Maximum completion token budget                                                              |
+| `AI_MAX_TOKENS`              | no          | `400`                   | Maximum completion token budget (32-8192)                                                    |
 | `AI_DAILY_MESSAGE_LIMIT`     | no          | `30`                    | Per-user, per-problem daily chat limit                                                       |
 | `AI_MIN_ATTEMPT_CHARS`       | no          | `20`                    | Minimum non-whitespace code characters for a counted failed attempt                          |
 | `AI_L2_UNLOCK_MINUTES`       | no          | `15`                    | Time on a problem before L2 becomes available                                                |
@@ -82,6 +83,18 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"   # a g
 
 The API refuses to start if a required variable is missing or invalid, and lists what is wrong. If your system DNS resolver cannot resolve your Atlas `mongodb+srv://` hostname, set `DNS_SERVERS=1.1.1.1,8.8.8.8` in `.env`; this changes DNS only for the Node process.
 
+To use Groq, configure the API service with:
+
+```dotenv
+LLM_PROVIDER=groq
+LLM_MODEL=qwen/qwen3.8-27b
+LLM_API_KEY=<Groq API key>
+```
+
+Groq's OpenAI-compatible API URL is selected automatically. Confirm the exact model ID is available to your Groq account; model IDs and availability can change. In AWS, store `LLM_API_KEY` in AWS Secrets Manager or another secret manager and inject it into the API service at runtime. Do not commit the key or bake it into a container image.
+
+`LLM_MAX_TOKENS` is accepted as a legacy alias; if both token settings are present, `AI_MAX_TOKENS` takes precedence. Provider failures produce fallback guidance in the tutor and an `ai.provider_failed` server log entry with the provider/model and upstream error (never the API key).
+
 ## Running
 
 Start the API and frontend without Docker:
@@ -90,7 +103,7 @@ Start the API and frontend without Docker:
 npm run dev
 ```
 
-Open `http://localhost:5173`. Browse published problems at `/problems`, then sign in. The tutor works with `LLM_PROVIDER=mock`; for real model-generated replies, set `LLM_PROVIDER=openai` and `LLM_API_KEY`.
+Open `http://localhost:5173`. Browse published problems at `/problems`, then sign in. The tutor works with `LLM_PROVIDER=mock`; for real model-generated replies, set `LLM_PROVIDER=openai` or `LLM_PROVIDER=groq`, and configure the required provider credentials.
 
 To run and judge submitted code, build the isolated runtime image and start the separate worker:
 
@@ -101,7 +114,7 @@ npm run dev:worker
 
 Run (sample tests only) and Submit (all tests) enqueue work through authenticated `/api/submissions` endpoints. The API process never executes submitted code. `SANDBOX_DRIVER=fake` can exercise queue/UI flows without Docker, but it does not compile or execute submissions.
 
-Generate draft tutor notes for a seed problem with `npm run generate-ai-notes -- <slug>`. The script requires the real provider, saves notes as unreviewed, and records lint warnings. An admin can review clean notes using `POST /api/problems/:id/ai-context/review`; any lint override must be explicit and is logged.
+Generate draft tutor notes for a seed problem with `npm run generate-ai-notes -- <slug>`. The script requires a real provider (`openai` or `groq`), saves notes as unreviewed, and records lint warnings. An admin can review clean notes using `POST /api/problems/:id/ai-context/review`; any lint override must be explicit and is logged.
 
 The deterministic red-team and helpfulness suites run with `npm test`. For an opt-in hosted-model evaluation, set `AI_REDTEAM_LIVE=1` in `.env` and run `npm run ai:redteam`.
 
@@ -110,6 +123,21 @@ Run `npm run judge:calibrate` on each new worker host to collect a small CPU tim
 Admins can open `/admin` to create or edit problems and their inline or file-backed test cases. File-backed cases keep their expected output in MongoDB for worker-side comparison; only the input is read from the seed directory. Promote an account with the command below, then sign in again so the updated role is reflected in the access token. Review problem statements and test cases before checking “Published publicly”. Public problem details include sample cases only.
 
 To run only the API without reload, use `npm start`. The API can also be checked at `http://localhost:4000/healthz`.
+
+## Deploying to an EC2 instance
+
+The client uses same-origin `/api` requests. In production, build the client and serve `client/dist` through Nginx, proxy `/api/` and `/healthz` to the Express API on `127.0.0.1:4000`, and enable HTTPS. The Nginx site template is [`deploy/nginx/codexa.conf`](deploy/nginx/codexa.conf); it includes SSE settings so tutor responses are not buffered.
+
+For an Ubuntu EC2 host:
+
+1. Install a supported Node.js version, Nginx, and Git. Restrict the EC2 security group to SSH from your IP and HTTP/HTTPS publicly; do not expose port 4000.
+2. Clone the repository to `/opt/codexa/oj`, install dependencies with `npm ci`, and build with `npm run build`.
+3. Configure MongoDB Atlas to allow the EC2 egress IP and create a least-privilege database user. Create `/etc/codexa/api.env` with `NODE_ENV=production`, `HOST=127.0.0.1`, `PORT=4000`, `TRUST_PROXY=1`, `CORS_ORIGINS=https://your-domain.example`, `MONGODB_URI`, a newly generated `JWT_ACCESS_SECRET`, and the selected server-side LLM settings. Restrict this file to the API service account (for example, owner `root:codexa` and mode `640`); never put the LLM key in Vite/client variables or Git.
+4. Create the `codexa` service account, copy [`deploy/systemd/codexa-api.service`](deploy/systemd/codexa-api.service) to `/etc/systemd/system/`, adjust `ExecStart` if Node is installed outside `/usr/bin/node`, then run `sudo systemctl daemon-reload && sudo systemctl enable --now codexa-api`. Keep the API bound to localhost or block its port at the security group/firewall.
+5. Copy the Nginx template to `/etc/nginx/sites-available/codexa`, update its `server_name` and frontend `root` to `/opt/codexa/oj/client/dist`, enable it, then run `sudo nginx -t` and reload Nginx. Use Certbot (or another ACME client) to provision HTTPS before accepting production logins; production refresh cookies require HTTPS.
+6. Check `https://your-domain.example/healthz`, sign in, and send a tutor message. If the tutor reports fallback guidance, check the API logs for `ai.provider_failed`; 401/403 usually indicates a key/permissions issue, 404/400 often means the model ID/configuration is wrong, and 429 indicates a quota/rate limit.
+
+Rotate any credentials that were exposed before deploying. Replace the MongoDB password, Groq/OpenAI key, and JWT secret via their issuing systems; changing the JWT secret invalidates existing access tokens. Inject replacement values into the server environment at runtime rather than sharing them in chat or source control. The repository changes cannot revoke provider keys or update your running EC2 instance without your AWS/provider access.
 
 Seed or refresh the five original, unpublished sample problems in MongoDB:
 

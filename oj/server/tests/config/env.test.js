@@ -10,6 +10,7 @@ describe('parseEnv', () => {
   it('applies defaults for optional values', () => {
     const env = parseEnv(valid);
     expect(env.PORT).toBe(4000);
+    expect(env.HOST).toBe('0.0.0.0');
     expect(env.JWT_ACCESS_TTL_SEC).toBe(900);
     expect(env.NODE_ENV).toBe('development');
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:5173']);
@@ -21,6 +22,10 @@ describe('parseEnv', () => {
     expect(env.JUDGE_MAX_ATTEMPTS).toBe(3);
     expect(env.JUDGE_LEASE_SEC).toBe(60);
     expect(env.JUDGE_JOB_RETENTION_DAYS).toBe(30);
+    expect(env.LLM_PROVIDER).toBe('mock');
+    expect(env.LLM_MODEL).toBe('gpt-4o-mini');
+    expect(env.LLM_BASE_URL).toBe('https://api.openai.com/v1');
+    expect(env.AI_MAX_TOKENS).toBe(400);
   });
 
   it('refuses to boot without MONGODB_URI', () => {
@@ -44,9 +49,22 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...valid, PORT: '70000' })).toThrow(/PORT/);
   });
 
+  it('allows binding the API to loopback for reverse-proxy deployments', () => {
+    expect(parseEnv({ ...valid, HOST: '127.0.0.1' }).HOST).toBe('127.0.0.1');
+  });
+
   it('parses a comma-separated CORS list', () => {
     const env = parseEnv({ ...valid, CORS_ORIGINS: 'http://a.test, http://b.test,' });
     expect(env.CORS_ORIGINS).toEqual(['http://a.test', 'http://b.test']);
+  });
+
+  it('accepts the legacy LLM_MAX_TOKENS name while preferring AI_MAX_TOKENS', () => {
+    expect(parseEnv({ ...valid, LLM_MAX_TOKENS: '600' }).AI_MAX_TOKENS).toBe(600);
+    expect(parseEnv({ ...valid, LLM_MAX_TOKENS: '2048' }).AI_MAX_TOKENS).toBe(2048);
+    expect(
+      parseEnv({ ...valid, AI_MAX_TOKENS: '500', LLM_MAX_TOKENS: '600' }).AI_MAX_TOKENS,
+    ).toBe(500);
+    expect(() => parseEnv({ ...valid, LLM_MAX_TOKENS: '10' })).toThrow(/LLM_MAX_TOKENS/);
   });
 
   it('parses and validates optional DNS resolver addresses', () => {
@@ -64,6 +82,27 @@ describe('parseEnv', () => {
       SANDBOX_DRIVER: 'fake',
       JUDGE_CPUSET: '0-2',
     });
+  });
+
+  it('configures Groq with its endpoint and requires its key and model', () => {
+    expect(
+      parseEnv({
+        ...valid,
+        LLM_PROVIDER: 'groq',
+        LLM_MODEL: 'qwen/qwen3.8-27b',
+        LLM_API_KEY: 'groq-test-key',
+      }),
+    ).toMatchObject({
+      LLM_PROVIDER: 'groq',
+      LLM_MODEL: 'qwen/qwen3.8-27b',
+      LLM_BASE_URL: 'https://api.groq.com/openai/v1',
+    });
+    expect(() => parseEnv({ ...valid, LLM_PROVIDER: 'groq', LLM_MODEL: 'model-id' })).toThrow(
+      /LLM_API_KEY/,
+    );
+    expect(() =>
+      parseEnv({ ...valid, LLM_PROVIDER: 'groq', LLM_API_KEY: 'groq-test-key' }),
+    ).toThrow(/LLM_MODEL/);
   });
 
   it('returns a frozen object', () => {

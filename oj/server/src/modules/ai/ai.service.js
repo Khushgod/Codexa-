@@ -236,6 +236,7 @@ export async function chat(userId, input) {
   let reply;
   let usage = {};
   let replaced = false;
+  let providerFailed = false;
   let cacheHit = false;
   try {
     cacheHit = Boolean(cacheKey && cannedReplyCache.has(cacheKey));
@@ -275,9 +276,15 @@ export async function chat(userId, input) {
       cannedReplyCache.set(cacheKey, reply);
     }
   } catch (error) {
-    logger.warn({ event: 'ai.provider_failed', error: error.message });
+    logger.warn({
+      event: 'ai.provider_failed',
+      provider: env.LLM_PROVIDER,
+      model: env.LLM_MODEL,
+      error: error.message,
+    });
     reply = fallbackReply(state.problem, context.level);
     replaced = true;
+    providerFailed = true;
     const referenceCode = await loadReferenceCode(state.problem.slug);
     const fallbackInspection = await inspectTutorOutput({
       reply,
@@ -327,7 +334,7 @@ export async function chat(userId, input) {
   state.conversation.tokenUsage.completion += completionTokens;
   state.conversation.tokenUsage.total += usage.total ?? promptTokens + completionTokens;
   await state.conversation.save();
-  return { reply, replaced, level: context.level };
+  return { reply, replaced, providerFailed, level: context.level };
 }
 
 export function validateChatInput(input) {

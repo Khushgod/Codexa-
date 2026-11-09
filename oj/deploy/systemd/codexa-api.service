@@ -1,0 +1,20 @@
+[Unit]
+Description=Codexa API
+After=network.target
+
+[Service]
+Type=simple
+User=codexa
+Group=codexa
+WorkingDirectory=/opt/codexa/oj
+EnvironmentFile=/etc/codexa/api.env
+ExecStart=/usr/bin/node server/src/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
